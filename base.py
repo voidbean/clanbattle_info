@@ -37,10 +37,14 @@ __all__ = [
     'check_reservation',
     'add_reservation',
     'remove_reservation',
+    'get_roles',
+    'get_work_category',
+    'get_work_basic',
+    'get_work_detail'
     ]
 
 magic_name = '13c941a144c18a98eb54b493ff0bd279' #魔法昵称,用于将全部未知昵称指定给某个qq, 如有重名建议打死
-
+roles = {} #角色信息
 ext_param = ''
 #ext_param = '&battle_id=1'  #指定某一期会战 用于debug
 base_api = 'https://www.bigfun.cn/api/feweb?target='
@@ -53,6 +57,10 @@ targets = {
     #boss报表
     "boss_report_collect": "gzlj-clan-boss-report-collect/a" + ext_param, #boss报表
     "boss_report": "gzlj-clan-boss-report/a&boss_id={}&page={}" + ext_param, #boss_id page
+    "role_list": "get-gzlj-role-list/a",
+    "team_work_category":"get-gzlj-team-war-work-category/a&type=2",
+    "team_work":"get-gzlj-team-war-work-list/a&type={}&battle_id={}&boss_position={}&order={}&page={}&boss_cycle={}" + ext_param,
+    "team_work_detail":"get-gzlj-team-war-work-detail/a&work_id={}" + ext_param
 }
 
 #群设置
@@ -229,6 +237,43 @@ def get_group_list():
             group_list.append(str(group))
     return group_list
 
+#初始化角色基础信息
+async def init_role_info(group_id: str):
+    data = await query_data(group_id, "role_list")
+    if not data or len(data)==0 or not 'data' in data:
+        return 1
+    data = data['data']
+    for role in data:
+        roles[str(role['id'])] = role['name']
+    return roles
+
+async def get_roles(group_id: str):
+    if len(roles) == 0:
+        await init_role_info(group_id)
+    return roles
+
+#获取会战id
+async def get_work_category(group_id: str):
+    data = await query_data(group_id, "team_work_category")
+    if not data or len(data)==0 or not 'data' in data:
+        return 1
+    data = data['data']
+    return data
+
+#获取基本作业信息
+async def get_work_basic(group_id: str,battle_id: int,boss_position: int,boss_cycle: int):
+    data = await query_data(group_id, "team_work", 2, battle_id,boss_position, 1, 1,boss_cycle)
+    if not data or len(data)==0 or not 'data' in data:
+        return 1
+    data = data['data']
+    return data
+
+async def get_work_detail(group_id: str,work_id: int):
+    data = await query_data(group_id, "team_work_detail", work_id)
+    if not data or len(data)==0 or not 'data' in data:
+        return 1
+    data = data['data']
+    return data
 #刷新boss总表
 #有用的信息: boss_list boss列表,在公会战期间不会变化
 #这部分信息只需要在初始化时更新一次,或新公会战开始时更新一次
@@ -405,6 +450,7 @@ async def init_group(group_id: str, internal: bool = False) -> int:
     clanbattle_info[group_id] = {}
     boss_challenge_list[group_id] = [[] for i in range(5)]
     all_challenge_list[group_id] = []
+    await init_role_info(group_id)
     #依次从接口获取数据, 某个过程失败就不再继续后续进程
     if await update_clanbattle_info_boss(group_id) != 0 or await update_clanbattle_info_day(group_id) != 0 or await safe_update_challenge_list(group_id) != 0:
         if internal:

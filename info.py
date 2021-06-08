@@ -66,6 +66,67 @@ async def get_collect_report(group_id: str) -> (int, str):
         msg += f"得分:{format_number(member['score'])}"
     return msg
 
+async def get_work_basic_report(group_id: str,boss_cycle: str, boss_id: str) -> (int, str):
+    cycle_id = 0
+    if boss_cycle == 'b' or boss_cycle =='B':
+        cycle_id = 4
+    elif boss_cycle == 'c' or boss_cycle == 'C':
+        cycle_id = 11
+    group_id = str(group_id)
+    roles = await get_roles(group_id)
+    battle_data = await get_work_category(group_id)
+    msg = ""
+    basic_data = await get_work_basic(group_id, battle_data['battle_info']['id'],int(boss_id), cycle_id)
+    for work in basic_data:
+        msg += f"\n作业名:{work['title']}" 
+        msg += f"\nid:{work['id']}"
+        msg += f"\n预计伤害:{work['expect_injury']}"
+        msg += f"\n使用角色:"
+        for role in work['role_list']:
+            msg += f" {roles[str(role['id'])]}"
+        msg += "\n--------------"
+    return msg 
+
+async def get_work_detail_report(group_id:str,work_id: str) -> (int, str):
+    group_id = str(group_id)
+    msg = ""
+    roles = await get_roles(group_id)
+    detail = await get_work_detail(group_id, work_id)
+    msg += f"\n作业名:{detail['title']}"
+    msg += f"\n文字轴:{detail['work']}"
+    msg += f"\n由{detail['user']['clan_name']}公会的{detail['user']['player_name']}提供"
+    msg += f"\n使用角色:"
+    role_list = json.loads(detail['role_list'])
+    for role in role_list:
+        msg += f" {roles[str(role['id'])]}"
+    return msg
+
+#枪毙
+async def get_dead_report(group_id: str) -> (int, str):
+    interval = 16
+    group_id = str(group_id)
+    day_str = get_daystr_from_daylist(group_id, 1)
+    now_day_str = get_daystr_from_daylist(group_id, 0)
+    if day_str != None and now_day_str != None:
+        interval = int(now_day_str.split("-")[2]) - int(day_str.split("-")[2])
+    msg = ""
+    data = await query_data(group_id, "collect-report")
+    if 'code' not in data: #网络错误
+        return '网络异常'
+    if data['code'] != 0: #cookie错误
+        return 'cookie无效'
+    if 'data' not in data: #数据异常
+        return '数据异常'
+    data = data['data']
+    msg = f"公会:{data['clan']['name']}\n"
+    msg += f"排名:{data['clan']['last_ranking']}\n"
+    msg += "枪毙情况(漏刀大于等于三刀):"
+    for member in data['data']:
+        if member['number'] < (interval)*3 and member['number'] < 16:
+            msg += f"\n昵称:{member['username']} "
+            msg += f"出刀:{member['number']} "
+    return msg
+
 #日表
 async def get_day_report(group_id: str, day: int = 0) -> (int, str):
     msg = ''

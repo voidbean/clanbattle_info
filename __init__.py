@@ -14,14 +14,14 @@ from .base import *
 from .info import *
 from .yobot import *
 
-HELP_MSG = 'clanbattle_info\n公会战信息管理系统\n指令前缀:cbi\n指令表:帮助,总表,日总表,日出刀表,boss出刀表,个人出刀表,boss状态,预约,取消预约,查看预约,状态,检查成员,绑定,解除绑定,查看绑定,绑定未知成员,解除绑定未知成员,继续报刀,暂停报刀,重置报刀进度,重置推送进度,初始化,生成会战报告,生成离职报告\n详细说明见项目文档: https://github.com/zyujs/clanbattle_info'
+HELP_MSG = 'clanbattle_info\n公会战信息管理系统\n指令前缀:公会战\n指令表:帮助,总表,日总表,日出刀表,boss出刀表,个人出刀表,boss状态,预约,取消预约,查看预约,状态,检查成员,绑定,解除绑定,查看绑定,绑定未知成员,解除绑定未知成员,继续报刀,暂停报刀,重置报刀进度,重置推送进度,初始化,生成会战报告,生成离职报告,枪毙名单\n详细说明见项目文档: https://github.com/zyujs/clanbattle_info'
 
 lmt = FreqLimiter(60)   #冷却时间60秒
 process_lock = {}
 
 sv = Service('clanbattle_info', bundle='pcr查询', help_= HELP_MSG)
 
-@sv.on_prefix('cbi')
+@sv.on_prefix('公会战')
 async def cbi(bot, ev: CQEvent):
     msg = ''
     user_id = ev.user_id
@@ -57,6 +57,18 @@ async def cbi(bot, ev: CQEvent):
         msg = HELP_MSG
     elif args[0] == '总表':
         msg = await get_collect_report(group_id)
+    elif args[0] == '枪毙名单':
+        msg = await get_dead_report(group_id)
+    elif args[0] == '作业':
+        match = re.search( r'作业\s*([a-c]|[A-C])(\d)', ev.message.extract_plain_text())
+        if not match or len(match.groups()) < 2:
+            match = re.search(r'作业\s*(\d+)', ev.message.extract_plain_text())
+            if not match:
+                msg = f'请输入 公会战 作业 boss(如b5)\n或公会战 作业 作业id'
+            else:
+                msg = await get_work_detail_report(group_id, match.group(1))
+        else:
+            msg = await get_work_basic_report(group_id, match.group(1), match.group(2))
     elif args[0] == '日总表':
         day = 0
         if len(args) >= 2 and args[1].isdigit():
